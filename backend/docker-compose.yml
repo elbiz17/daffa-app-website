@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    container_name: zakat_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: zakat_db
+    ports:
+      - "5558:5432"
+    volumes:
+      - zakat_data:/var/lib/postgresql/data
+
+volumes:
+  zakat_data:

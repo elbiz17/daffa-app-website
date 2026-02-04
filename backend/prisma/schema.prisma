@@ -1,14 +1,183 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ------------- USER MODEL -------------
+//
+model User {
+  id          String      @id @default(uuid())
+  name        String
+  email       String      @unique
+  password    String
+  phone       String?
+  role        Role     @default(USER)
+  avatarUrl   String?
+  articles    Article[]
+  donations   Donation[]
+  campaigns   Campaign[]
+  sessions    Session[]   
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime 
+  
+  user User @relation(fields: [userId], references: [id])
+}
+
+//
+// ------------- CAMPAIGN MODEL -------------
+//
+model Campaign {
+  id               String      @id @default(uuid())
+  title            String
+  slug             String      @unique
+  description      String
+  targetAmount     Decimal     @db.Decimal(12,2)
+  collectedAmount  Decimal     @db.Decimal(12,2)
+  startDate        DateTime
+  endDate          DateTime?
+  status           CampaignStatus @default(active) //String      @default("active") // "active" | "closed" | "draft"
+  heroImage        String?
+  category         CampaignCategory?   // "zakat" | "fidyah" | "qurban" | "umum"
+  tags             Tag[]       @relation("CampaignTags")
+  donations        Donation[]
+  zakat            Zakat?
+  fidyah           Fidyah?
+  qurban           Qurban?
+  createdById      String?
+  createdBy        User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+//
+// ------------- DONATION MODEL -------------
+//
+model Donation {
+  id              String      @id @default(uuid())
+  campaignId      String
+  donorId         String?     
+  donorName       String
+  donorEmail      String?
+  amount          Decimal     @db.Decimal(12,2)
+  paymentMethod   String
+  paymentStatus   DonationStatus @default(pending) //@default("pending") // "pending" | "paid" | "failed"
+  transactionId   String?
+  paidAt          DateTime?
+  campaign        Campaign    @relation(fields: [campaignId], references: [id])
+  donor           User?       @relation(fields: [donorId], references: [id])
+  createdAt       DateTime    @default(now())
+}
+
+//
+// ------------- ARTICLE MODEL (artikel + blog) -------------
+//
+model Article {
+  id          String     @id @default(uuid())
+  title       String
+  slug        String     @unique
+  type        String     // "artikel" | "blog"
+  excerpt     String?
+  body        String
+  heroImage   String?
+  status      String     @default("draft") // "draft" | "published"
+  publishedAt DateTime?
+  authorId    String?    
+  author      User?      @relation(fields: [authorId], references: [id])
+  tags        Tag[]      @relation("ArticleTags")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+//
+// ------------- TAG MODEL -------------
+//
+model Tag {
+  id         String      @id @default(uuid())
+  name       String
+  slug       String      @unique
+  articles   Article[]   @relation("ArticleTags")
+  campaigns  Campaign[]  @relation("CampaignTags")
+}
+
+//
+// ------------- ZAKAT MODEL -------------
+//
+model Zakat {
+  id            String   @id @default(uuid())
+  campaignId    String   @unique
+  zakatType     String
+  nisabValue    Decimal? @db.Decimal(12,2)
+  zakatPercent  Decimal? @db.Decimal(5,2)
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Fidyah {
+  id            String   @id @default(uuid())
+  campaignId    String   @unique
+  amountPerDay  Decimal  @db.Decimal(12,2)
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Qurban {
+  id            String   @id @default(uuid())
+  campaignId    String   @unique
+  animalType    String
+  price         Decimal  @db.Decimal(12,2)
+  stock         Int
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+//
+// ------------- OPTIONAL SETTINGS MODEL -------------
+//
+model Setting {
+  id        String    @id @default(uuid())
+  key       String    @unique
+  value     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum CampaignStatus {
+  active
+  closed
+  draft
+}
+
+enum DonationStatus {
+  pending
+  paid
+  failed
+}
+
+enum CampaignCategory {
+  zakat
+  fidyah
+  qurban
+  umum
 }
